@@ -30,38 +30,39 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Check whether the project is already extracted.
-          settings_file="$(find . -maxdepth 6 -type f \
+          # Search for an existing Android Gradle project.
+          settings_file="$(find . -maxdepth 8 -type f \
             \( -name settings.gradle -o -name settings.gradle.kts \) \
             -not -path './.github-workspace/*' \
             -print -quit)"
 
-          # If no Gradle project was found, extract a ZIP.
+          # If no project exists, find and extract a ZIP file.
           if [[ -z "$settings_file" ]]; then
-            zip_file="$(find . -maxdepth 4 -type f \
+            zip_file="$(find . -maxdepth 5 -type f \
               -iname '*.zip' \
               -not -path './.github-workspace/*' \
               -print -quit)"
 
             if [[ -z "$zip_file" ]]; then
-              echo "::error::No Android Gradle project or ZIP file found."
-              echo "Upload your project ZIP to the repository."
+              echo "::error::No Android project or ZIP file found."
+              echo "Upload the Android project ZIP to your repository."
               exit 1
             fi
 
             echo "Found ZIP: $zip_file"
+
             mkdir -p .github-workspace/project
             unzip -oq "$zip_file" -d .github-workspace/project
 
-            settings_file="$(find .github-workspace/project -maxdepth 8 \
+            settings_file="$(find .github-workspace/project -maxdepth 10 \
               -type f \
               \( -name settings.gradle -o -name settings.gradle.kts \) \
               -print -quit)"
           fi
 
           if [[ -z "$settings_file" ]]; then
-            echo "::error::Could not find settings.gradle or settings.gradle.kts after extraction."
-            echo "Check the ZIP structure and make sure it contains the Android project."
+            echo "::error::Could not find settings.gradle or settings.gradle.kts."
+            echo "Check that the ZIP contains the Android Gradle project."
             exit 1
           fi
 
@@ -83,6 +84,23 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android SDK Licenses
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" \
+            -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
+
+          if [[ -z "$SDKMANAGER" ]]; then
+            echo "::error::Could not find Android SDK sdkmanager."
+            exit 1
+          fi
+
+          echo "Using sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses
+
       - name: Verify Gradle Wrapper
         shell: bash
         run: |
@@ -91,12 +109,12 @@ jobs:
           project_dir="${{ steps.project.outputs.dir }}"
 
           if [[ ! -f "$project_dir/gradlew" ]]; then
-            echo "::error::gradlew is missing from the Android project."
+            echo "::error::gradlew is missing from the project."
             exit 1
           fi
 
           if [[ ! -f "$project_dir/gradle/wrapper/gradle-wrapper.properties" ]]; then
-            echo "::error::gradle/wrapper/gradle-wrapper.properties is missing."
+            echo "::error::gradle-wrapper.properties is missing."
             exit 1
           fi
 
