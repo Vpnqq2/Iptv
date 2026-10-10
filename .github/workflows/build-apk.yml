@@ -30,13 +30,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Search for an existing Android Gradle project.
           settings_file="$(find . -maxdepth 8 -type f \
             \( -name settings.gradle -o -name settings.gradle.kts \) \
             -not -path './.github-workspace/*' \
             -print -quit)"
 
-          # If no project exists, find and extract a ZIP file.
           if [[ -z "$settings_file" ]]; then
             zip_file="$(find . -maxdepth 5 -type f \
               -iname '*.zip' \
@@ -45,7 +43,6 @@ jobs:
 
             if [[ -z "$zip_file" ]]; then
               echo "::error::No Android project or ZIP file found."
-              echo "Upload the Android project ZIP to your repository."
               exit 1
             fi
 
@@ -62,7 +59,7 @@ jobs:
 
           if [[ -z "$settings_file" ]]; then
             echo "::error::Could not find settings.gradle or settings.gradle.kts."
-            echo "Check that the ZIP contains the Android Gradle project."
+            echo "Check that your ZIP contains the Android Gradle project."
             exit 1
           fi
 
@@ -72,7 +69,6 @@ jobs:
           echo "Android project directory: $project_dir"
           echo "dir=$project_dir" >> "$GITHUB_OUTPUT"
 
-          echo "Project files:"
           ls -la "$project_dir"
 
       - name: Set up Java
@@ -90,11 +86,12 @@ jobs:
           set -euo pipefail
 
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" \
             -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
 
           if [[ -z "$SDKMANAGER" ]]; then
-            echo "::error::Could not find Android SDK sdkmanager."
+            echo "::error::Android SDK sdkmanager not found."
             exit 1
           fi
 
